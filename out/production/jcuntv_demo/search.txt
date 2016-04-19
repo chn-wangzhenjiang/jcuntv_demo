@@ -1,0 +1,92 @@
+ $.subscribe('rowselect', function(event,data){
+	 	//alert(data);
+	 	tmpviewrowid = event.originalEvent.id;
+	 	var rowData = $("#gridtable").jqGrid("getRowData",tmpviewrowid);
+	 	alert(rowData.ID);
+	 });	
+	onSelectRowTopics="rowselect"
+
+
+function dosearch(){
+		 	//$("#micet_searchdiv").css("display","block");	     
+		 	 //如果没有任何选择条件，那么恢复原始的，否则根据选择条件进行处理
+		 	 //../../jsons/GenericSelect.do?tb=%{tablename}&fd=%{fields}&efcd=%{efcd}
+		 	 var tmpsearchcond="";
+		 	 tmpefcd = efcd;
+		 	 if($("#chk__loginName").is(':checked'))
+		 	 {
+		 	 	//alert($("#loginName").val());
+		 	 	tmpsearchcond = "loginName:1:"+$("#loginName").val();
+		 	 	tmpefcd=","+tmpsearchcond;
+		 	 }
+		 	   var rules = "";  
+		 	   //eq 等于   cn 包含
+    rules =',{"field":"'+'loginName' + '","op":"' +'cn'+ '","data":"'+ $("#loginName").val()  +'"}'; 
+    if(rules) { //(6)如果rules不为空，且长度大于0，则去掉开头的逗号  
+       rules = rules.substring(1);  
+   }  
+     
+    		//(7)串联好filtersStr字符串  
+   			var filtersStr = '{"groupOp":"AND","rules":[' + rules + ']}';       
+    		var postData = $("#gridtable").jqGrid("getGridParam", "postData");       
+    		//(8)将filters参数串加入postData选项  
+   			$.extend(postData, {filters: filtersStr});       
+   			$("#gridtable").jqGrid("setGridParam", {  
+       			search:  true    //(9)将jqGrid的search选项设为true  
+   			}).trigger("reloadGrid", [{page:1}]);   //(10)重新载入Grid表格  
+    
+
+		}
+		
+	
+	<div class="quick-enter">
+		<table>
+				<form id="myform" name="myform" action="" method="get" style="display: inline;">
+ <div id="micet_searchdiv" >
+	 <table > 
+	 <tr height="25px"> 
+	 <td> 
+	 <table onMouseDown="catchFlyBar()" onMouseUp="releaseFlyBar()" width="100%"> 
+	 <tr><td><img src="../../images/grid/searchindicator.gif"/></td><td align=left><span class="searchdiv_titleclass">请输入查询条件</span></td> 
+	 <td align="right"><img src="../../images/grid/searchclose.gif" style="cursor:hand" onclick='$("#micet_searchdiv").css("display","none");'/></td> 
+	 </tr> 
+	 </table> 
+	 </td> 
+	 </tr> 
+	 <tr><td> 
+	 <table  width="100%" height="100%" id="micet_searchcontenttable"> 
+	 <tr  height="20px">
+	 	<td>&nbsp;<input type="checkbox" id="chk__loginName" name="chk__loginName"/></td>
+		<td class="tdLabel">  				
+			&nbsp;<%=Customer.ALIAS_LOGIN_NAME%>:&nbsp;
+		</td>	
+		<td class="tdField">
+	  		<s:textfield label="%{@com.micet.model.Customer@ALIAS_LOGIN_NAME}" id="loginName" name="loginName" value="%{model.loginName}" cssClass="inputClass" required="false"  theme="simple"/>
+	  	</td>	
+	  	<td>
+	  	&nbsp;<input type="checkbox" id="chk__vipcode" name="chk__vipcode"/>
+	  	</td>
+		<td class="tdLabel">  					  		
+				&nbsp;<%=Customer.ALIAS_VIPCODE%>:&nbsp;
+			</td>	
+			<td class="tdField">	  				
+	  				<s:textfield label="%{@com.micet.model.Customer@ALIAS_VIPCODE}" id="vipcode" name="vipcode" value="%{model.vipcode}" cssClass="inputClass" required="false"  theme="simple"/>
+	  		</td>	
+	 </tr>
+	 </table>
+	 </td>
+	 </tr>
+	 <tr height="20"> 
+	 <td> 
+	 <table > 
+	 <tr><td> 	
+	 <div class="btnpt"><a href="javascript:dosearch();" onfocus="this.blur();"><span class="icon"><img src="../../images/icon-8.gif" /></span><span class="txt">查找</span></a></div>		
+	 </td></tr> 
+	 </table>  
+	 </td> 
+	 </tr> 
+	 </table>
+</div>
+</form>
+		</table>
+	</div>

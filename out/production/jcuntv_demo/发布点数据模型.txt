@@ -1,0 +1,129 @@
+
+
+#对外发布节点清单，例如第三方CDN,第三方BMS等
+t_publishpoint=发布点信息,menugroup=发布管理,
+t_publishpoint.PKID=主键
+t_publishpoint.Type=类型,displaytype=combo,datasrctype=1,datasrc=0:CDN发布点;1:BMS发布点;2:EPG发布点;3:CMS发布点;
+t_publishpoint.Name=发布点名称,validate=Validate_NotEmpty,mandatory=1,
+t_publishpoint.PPID=发布点标识(LSPID)
+t_publishpoint.Version=同步接口版本,displaytype=combo,datasrctype=1,datasrc=CTC2.4_LinkAge:C2++联创接口;CTC2.4:C2++接口;CTC2.1:C2Plus接口;CTC2.0:C2接口;
+t_publishpoint.InterfaceUrl=接口地址
+t_publishpoint.CreateTime=创建时间,displaytype=unixtime,dataformat=yyyy-MM-dd HH:mm:ss,generate=auto,editable=false,
+t_publishpoint.UpdateTime=更新时间,displaytype=unixtime,dataformat=yyyy-MM-dd HH:mm:ss,generate=autorenew,editable=false,
+t_publishpoint.Status=状态,displaytype=combo,datasrctype=1,datasrc=1:有效;0:无效;
+
+
+t_pubtask=发布任务
+t_pubtask.PKID=主键
+t_pubtask.Name=任务名称,validate=Validate_NotEmpty,mandatory=1,
+t_pubtask.CSPID=CSPID
+t_pubtask.LSPID=LSPID
+t_pubtask.CorrelateID=关联标识
+t_pubtask.CmdFileUrl=命令文件地址
+t_pubtask.CreateTime=创建时间,displaytype=unixtime,generate=auto,
+t_pubtask.ExecuteTime=执行时间,displaytype=unixtime,
+t_pubtask.FinishTime=完成时间,displaytype=unixtime,
+t_pubtask.Result=执行结果
+t_pubtask.ResultDesc=结果描述
+t_pubtask.State=状态,dispalytype=combo,datasrctype=1,datasrc=0:待发布;1:命令发送完成;2:同步成功;3:同步失败;
+
+
+管理系统生成xml后调用以下存储过程，产生多个发布任务
+
+-- ----------------------------
+-- Procedure structure for `P_SaveOutCmdFile`
+-- ----------------------------
+DROP PROCEDURE IF EXISTS `P_SaveOutCmdFile`;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `P_SaveOutCmdFile`(
+			_ElementType varchar(64),
+			_ElementID varchar(64),
+			_Name 	varchar(128),
+			_CmdFilePath varchar(1024),
+			_CmdFileUrl  varchar(1024)
+	)
+BEGIN
+	DECLARE tmpPKID int;
+	DECLARE tmpNodeID varchar(128);
+	DECLARE tmpVersion varchar(64);
+	DECLARE tmpInterfaceUrl varchar(1024);
+	DECLARE tmpLocalCSPID	varchar(128);
+	DECLARE tmpDone int;
+	DECLARE tmpCorrelateID varchar(64);
+	DECLARE tmpPubPointType int;
+	DECLARE tmpSyncPointCnt int;
+	/*е?????*/	
+	DECLARE node_cursor CURSOR FOR SELECT PKID,PPID,Version,InterfaceUrl,Type FROM t_publishpoint WHERE Status=1;
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET tmpDone=1;
+	SET tmpDone =0;
+	SET tmpSyncPointCnt = 0;
+	SELECT PropValue into tmpLocalCSPID from t_sysconfig where PropName='OutCSPID';
+	SET tmpCorrelateID =f_nextval('seq_correlateid');
+	OPEN node_cursor;    	
+	FETCH node_cursor INTO tmpPKID,tmpNodeID,tmpVersion,tmpInterfaceUrl,tmpPubPointType;
+	while tmpDone<>1 DO	
+		
+		/*0:CDN;1:BMS;2:EPG;3:CMS;*/
+		IF tmpPubPointType=0 THEN
+/*1 Movie y?
+2 PhysicalChannel ?
+3 ScheduleRecord ??*/
+			IF _ElementType='Movie' OR _ElementType='PhysicalChannel' OR _ElementType='ScheduleRecord' THEN
+				insert into t_outsync_message(IfVersion,IfUrl,Name,CSPID,LSPID,CorrelateID,CmdFileUrl,CreateTime,Status)
+				values(tmpVersion,tmpInterfaceUrl,_Name,tmpLocalCSPID,tmpNodeID,tmpCorrelateID,_CmdFileUrl,unix_timestamp(),0);
+				SET tmpSyncPointCnt = tmpSyncPointCnt +1;
+			END IF;
+		ELSEIF tmpPubPointType=1 THEN
+/*1 Sevice ?
+2 Series 
+3 Channel TV ??
+4 PhysicalChannel ??
+5 Program ??
+6 Category ??
+7 Schedule ????
+*/
+			IF _ElementType='Service' OR _ElementType='Series' OR _ElementType='Channel' OR
+				_ElementType='PhysicalChannel' OR _ElementType='Program' OR
+				_ElementType='Category' OR _ElementType='Schedule' THEN
+				
+				insert into t_outsync_message(IfVersion,IfUrl,Name,CSPID,LSPID,CorrelateID,CmdFileUrl,CreateTime,Status)
+				values(tmpVersion,tmpInterfaceUrl,_Name,tmpLocalCSPID,tmpNodeID,tmpCorrelateID,_CmdFileUrl,unix_timestamp(),0);
+				SET tmpSyncPointCnt = tmpSyncPointCnt +1;
+			END IF;
+		ELSE
+			insert into t_outsync_message(IfVersion,IfUrl,Name,CSPID,LSPID,CorrelateID,CmdFileUrl,CreateTime,Status)
+			values(tmpVersion,tmpInterfaceUrl,_Name,tmpLocalCSPID,tmpNodeID,tmpCorrelateID,_CmdFileUrl,unix_timestamp(),0);
+			SET tmpSyncPointCnt = tmpSyncPointCnt +1;		
+		END IF;
+		/*insert into t_outsync_message(Name,CSPID,LSPID,CorrelateID,CmdFileUrl,CreateTime,Status)
+		values(tmpVersion,tmpInterfaceUrl,_Name,tmpLocalCSPID,tmpNodeID,tmpCorrelateID,_CmdFileUrl,unix_timestamp(),0);*/
+		FETCH node_cursor INTO tmpPKID,tmpNodeID,tmpVersion,tmpInterfaceUrl,tmpPubPointType; 
+	end while; 
+	CLOSE node_cursor;         
+END
+;;
+DELIMITER ;
+
+当收到任务目的反馈的时候调用以下过程
+-- ----------------------------
+-- Procedure structure for `P_SaveOutCmdReply`
+-- ----------------------------
+DROP PROCEDURE IF EXISTS `P_SaveOutCmdReply`;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `P_SaveOutCmdReply`(
+		_IFVersion NVARCHAR(128),
+		_CSPID NVARCHAR(128),
+		_LSPID NVARCHAR(128),
+		_CorrelateID NVARCHAR(128),
+		_CmdResult Integer,
+		_CmdDesc	NVARCHAR(256),
+		_CmdResultFileUrl NVARCHAR(1024),
+		out _Result Integer,
+		out _ResultDesc NVARCHAR(256)
+		)
+BEGIN
+	INSERT INTO t_outsync_reply(IfVersion,CSPID,LSPID,CorRelateID,ResultCode,ErrorDescription,ResultFileUrl,CreateTime,Status)
+			values(_IFVersion,_CSPID,_LSPID,_CorrelateID,_CmdResult,_CmdDesc,_CmdResultFileUrl,unix_timestamp(),0);
+END
+;;
+DELIMITER ;

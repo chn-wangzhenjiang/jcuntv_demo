@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<#assign className = table.className>   
+<#assign classNameLower = className?uncap_first>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="${className}Mapper">	
+	<!-- 新增-->
+	<insert id="insert" parameterType="pd">
+		insert into ${table.sqlName}(
+<#list table.columns as c>
+	<#if c.pk>
+	<#else>		
+		 <#if c_has_next>
+		 	${c.sqlName},
+		 <#else>
+		 	${c.sqlName}
+		 </#if>	
+	</#if>
+</#list>			
+		) values (
+<#list table.columns as c>		
+ 	<#if c.pk>
+	<#else>		
+		 <#if c_has_next>
+		 	${'#'}{${c.sqlName}},
+		 <#else>
+		 	${'#'}{${c.sqlName}}
+		 </#if>	
+	</#if>		 
+</#list>				
+		)		
+	</insert>
+	
+	
+		<!-- 删除-->
+	<delete id="delete" parameterType="pd">
+		delete from ${table.sqlName}
+		where 
+			${table.pkName} = ${'#'}{${table.pkName}}
+	</delete>
+	
+		<!-- 批量删除用户 -->
+	<delete id="deleteAll" parameterType="String">
+		delete from ${table.sqlName}
+		where 
+			${table.pkName} in
+			<foreach item="item" index="index" collection="array" open="(" separator="," close=")">
+  			 	${'#'}{item}
+			</foreach>
+	</delete>
+	
+	<!-- 修改 -->
+	<update id="update" parameterType="pd">
+		update  ${table.sqlName}
+			set 
+<#list table.columns as c>		
+ 	<#if c.pk>
+	<#else>		
+		 <#if c_has_next>
+		 		${c.sqlName} = ${'#'}{${c.sqlName}},
+		 <#else>
+		 		${c.sqlName} = ${'#'}{${c.sqlName}}
+		 </#if>	
+	</#if>		 
+</#list>			
+			where 
+					${table.pkName} = ${'#'}{${table.pkName}}
+	</update>
+	
+	<!-- 通过ID获取数据 -->
+	<select id="findById" parameterType="pd" resultType="pd">
+		select 
+<#list table.columns as c>		
+		 <#if c_has_next>
+		 		${c.sqlName},
+		 <#else>
+		 		${c.sqlName}
+		 </#if>	
+</#list>		
+		from 
+			${table.sqlName}
+		where 
+			${table.pkName} = ${'#'}{${table.pkName}}
+	</select>
+	
+	
+		<!-- 列表 -->
+	<select id="listPage" parameterType="page" resultType="pd">
+		select
+	<#assign tmptableseq=2>
+	
+	<#list table.columns as c>		
+		 <#if c_has_next>
+		 		t1.${c.sqlName},
+		 		<#if c.fktable!=""> 
+		 		t${tmptableseq}.${c.fknamecolumn} as ${c.fkalias},
+		 		<#assign tmptableseq = tmptableseq+1>
+		 		</#if>
+		 <#else>
+		 		<#if c.fktable!=""> 
+		 		t${tmptableseq}.${c.fknamecolumn} as ${c.fkalias},
+		 		<#assign tmptableseq = tmptableseq+1>
+		 		</#if>
+		 		t1.${c.sqlName}		 		
+		 </#if>	
+	</#list>
+		from 
+			${table.sqlName} t1
+			<#assign tmptablemaxseq=tmptableseq>
+			<#assign tmptableseq=2>			
+			<#list table.columns as c>
+					<#if c.fktable!=""> 						
+		 	left join  ${c.fktable} as  t${tmptableseq} on t1.${c.sqlName}= t${tmptableseq}.${c.fkidcolumn}
+		 			 	<#assign tmptableseq = tmptableseq+1>
+		 			</#if>
+		 	</#list>
+		 
+		where 1=1 
+	<#list table.columns as c>		
+		<if test="pd.${c.sqlName} != null">
+		  <#if c.sqlTypeName="varchar">
+		  	and t1.${c.sqlName} like ${'#'}{pd.${c.sqlName}}
+		  <#else>
+        		and t1.${c.sqlName} = ${'#'}{pd.${c.sqlName}}
+      	</#if>
+		</if>      	
+	</#list>		
+
+	</select>
+	<!-- 列表所有 -->
+	<select id="listAll" parameterType="pd" resultType="pd">
+		select
+	<#assign tmptableseq=2>
+	<#list table.columns as c>		
+		 <#if c_has_next>
+		 		t1.${c.sqlName},
+		 		<#if c.fktable!=""> 
+		 		t${tmptableseq}.${c.fknamecolumn} as ${c.fkalias},
+		 		<#assign tmptableseq = tmptableseq+1>
+		 		</#if>
+		 <#else>
+		 		<#if c.fktable!=""> 
+		 		t${tmptableseq}.${c.fknamecolumn} as ${c.fkalias},
+		 		<#assign tmptableseq = tmptableseq+1>
+		 		</#if>
+		 		t1.${c.sqlName}		 		
+		 </#if>	
+	</#list>
+		from 
+			${table.sqlName} t1
+			<#assign tmptablemaxseq=tmptableseq>
+			<#assign tmptableseq=2>			
+			<#list table.columns as c>
+					<#if c.fktable!=""> 						
+		 	left join  ${c.fktable} as  t${tmptableseq} on t1.${c.sqlName}= t${tmptableseq}.${c.fkidcolumn}
+		 			<#assign tmptableseq = tmptableseq+1>
+		 			</#if>
+		 	</#list>				
+		where 1=1 
+	<#list table.columns as c>		
+		<if test="${c.sqlName} != null">
+		  <#if c.sqlTypeName="varchar">
+		  	and t1.${c.sqlName} like ${'#'}{${c.sqlName}}
+		  <#else>
+        	and t1.${c.sqlName} = ${'#'}{${c.sqlName}}
+      	</#if>
+		</if>      	
+	</#list>	
+	</select>
+</mapper>
